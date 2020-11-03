@@ -13,7 +13,7 @@ module StripeEventHelper
       email = if event.data.object.customer.present?
         User.find_by_stripe_customer_id(event.data.object.customer).email
       else
-        event.data.object.billing_details.email
+        event.data.object.receipt_email
       end
       DuesMailer.failed(email).deliver_now
     end
