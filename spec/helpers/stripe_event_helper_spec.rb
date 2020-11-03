@@ -46,7 +46,7 @@ describe StripeEventHelper do
 
     context "with no Stripe customer ID" do
       before do
-        event.data.object.source.name = "basil@example.com"
+        event.data.object.billing_details.email = "basil@example.com"
         event.data.object.customer = nil
       end
 
