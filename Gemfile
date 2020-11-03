@@ -19,7 +19,7 @@ gem "rails_autolink", ">= 1.1.6"
 gem "redcarpet"
 gem "configurable_engine" , ">= 0.5.0" # this gem was design for Rails 5, consider removing or replacing it
 gem "bugsnag"
-gem "stripe", "~> 3" # TODO upgrade this! Carefully...
+gem "stripe", "~> 5.28.0" # TODO upgrade this! Carefully...
 gem "stripe_event"
 gem "rack-canonical-host"
 gem "aws-sdk-rails", ">= 2.1.0"
@@ -69,7 +69,7 @@ group :test do
   gem "rspec-collection_matchers"
   gem "selenium-webdriver"
   gem "shoulda-matchers"
-  gem "stripe-ruby-mock", require: "stripe_mock"
+  gem 'stripe-ruby-mock', '~> 3.0.1', :require => 'stripe_mock'
   gem "simplecov"
   gem "rails-controller-testing", ">= 1.0.5"
 end

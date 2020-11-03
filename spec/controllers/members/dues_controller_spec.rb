@@ -4,6 +4,7 @@ describe Members::DuesController do
   include AuthHelper
 
   let(:member) { create(:member) }
+  let(:stripe_helper) { StripeMock.create_test_helper }
 
   describe "GET show" do
     subject { get :show, params: { user_id: member.id } }
@@ -68,15 +69,6 @@ describe Members::DuesController do
     context "when the user already has a Stripe ID" do
       before do
         StripeMock.start
-        # TODO: remove api_key setting when this issue is fixed:
-        # https://github.com/rebelidealist/stripe-ruby-mock/issues/209
-        Stripe.api_key = "coolapikey"
-        Stripe::Plan.create(id: "test_plan",
-                            amount: 5000,
-                            currency: "usd",
-                            interval: "month",
-                            product: "test product",
-                            name: "test plan")
 
         # Must set referrer so that DuesController#redirect_target works
         request.env["HTTP_REFERER"] = "http://example.com/members/users/x/dues"
@@ -88,15 +80,22 @@ describe Members::DuesController do
         StripeMock.stop
       end
 
+      let!(:product) { stripe_helper.create_product(id: 'test_product') }
+      let!(:plan) do
+        stripe_helper.create_plan(
+          id: "test_plan", amount: 5000, currency: "usd", interval: "month",
+          product: 'test_product', name: "test plan")
+      end
+
       let(:customer) do
         Stripe::Customer.create({
           email: "user@example.com",
-          source: StripeMock.generate_card_token({})
+          source: stripe_helper.generate_card_token
         })
       end
 
       let(:active_subscription) do
-        customer.subscriptions.create({plan: "test_plan"})
+        customer.subscriptions.create({plan: plan.id})
       end
 
       it "should cancel their active subscription" do
@@ -117,15 +116,6 @@ describe Members::DuesController do
   describe "POST update" do
     before do
       StripeMock.start
-      # TODO: remove api_key setting when this issue is fixed:
-      # https://github.com/rebelidealist/stripe-ruby-mock/issues/209
-      Stripe.api_key = "coolapikey"
-      Stripe::Plan.create(id: "test_plan",
-                          amount: 5000,
-                          currency: "usd",
-                          interval: "month",
-                          product: "test product",
-                          name: "test plan")
 
       # Must set referrer so that DuesController#redirect_target works
       request.env["HTTP_REFERER"] = "http://example.com/members/users/x/dues"
@@ -133,6 +123,13 @@ describe Members::DuesController do
 
     after do
       StripeMock.stop
+    end
+
+    let!(:product) { stripe_helper.create_product(id: "test_product") }
+    let!(:plan) do
+      stripe_helper.create_plan(
+        id: "test_plan", amount: 5000, currency: "usd", interval: "month",
+        product: "test_product", name: "test plan")
     end
 
     let(:token) { StripeMock.generate_card_token({}) }
@@ -174,7 +171,7 @@ describe Members::DuesController do
       context "previous subscription has been canceled" do
         it "creates new subscription with plan" do
           post_dues
-          subscription = Stripe::Customer.retrieve(user.stripe_customer_id).subscriptions.first
+          subscription = Stripe::Customer.retrieve(id: user.stripe_customer_id, expand: ['subscriptions']).subscriptions.first
           expect(subscription.plan.id).to eq("test_plan")
         end
 
@@ -184,13 +181,13 @@ describe Members::DuesController do
       end
 
       context "has a prior payment source" do
-        before { Stripe::Customer.retrieve(user.stripe_customer_id) }
+        before { Stripe::Customer.retrieve(id: user.stripe_customer_id, expand: ['subscriptions']) }
 
-        let!(:previous_default_source) { Stripe::Customer.retrieve(user.stripe_customer_id).sources.first }
+        let!(:previous_default_source) { Stripe::Customer.retrieve(id: user.stripe_customer_id, expand: ['subscriptions']).sources.first }
 
         it "updates their card" do
           post_dues
-          customer = Stripe::Customer.retrieve(user.stripe_customer_id)
+          customer = Stripe::Customer.retrieve(id: user.stripe_customer_id, expand: ['subscriptions'])
           expect(customer.default_source).to_not eq(previous_default_source)
           subscription = customer.subscriptions.first
           expect(subscription.plan.id).to eq("test_plan")
@@ -202,7 +199,7 @@ describe Members::DuesController do
       it "updates their stripe customer ID in the database" do
         post_dues
         expect(user.stripe_customer_id).to be_present
-        subscription = Stripe::Customer.retrieve(user.stripe_customer_id).subscriptions.first
+        subscription = Stripe::Customer.retrieve(id: user.stripe_customer_id, expand: ['subscriptions']).subscriptions.first
         expect(subscription.plan.id).to eq("test_plan")
       end
     end

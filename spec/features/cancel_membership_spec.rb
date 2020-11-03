@@ -53,7 +53,7 @@ describe "canceling dues", js: true do
     expect(page).to have_content "Bookmarks for Members"
 
     allow(Stripe::Customer).to receive(:retrieve)
-      .with(member.stripe_customer_id)
+      .with(id: member.stripe_customer_id, expand: ['subscriptions'])
       .and_return(customer)
 
     click_on "Manage Dues"

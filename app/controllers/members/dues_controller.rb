@@ -3,7 +3,7 @@ class Members::DuesController < Members::MembersController
     @user = current_user
 
     if current_user.stripe_customer_id
-      customer = Stripe::Customer.retrieve(current_user.stripe_customer_id)
+      customer = Stripe::Customer.retrieve(id: current_user.stripe_customer_id, expand: ['subscriptions'])
       @subscription = customer.subscriptions.first
       @current_plan = amount_plan_name.fetch(@subscription.plan.amount, nil) if @subscription
     end
@@ -12,7 +12,7 @@ class Members::DuesController < Members::MembersController
   def cancel
     message = "You don't have an active membership dues subscription"
     if current_user.stripe_customer_id
-      customer = Stripe::Customer.retrieve(current_user.stripe_customer_id)
+      customer = Stripe::Customer.retrieve(id: current_user.stripe_customer_id, expand: ['subscriptions'])
       @subscription = customer.subscriptions.first
 
       if @subscription
@@ -29,7 +29,7 @@ class Members::DuesController < Members::MembersController
     @user = current_user
 
     if current_user.stripe_customer_id
-      customer = Stripe::Customer.retrieve(current_user.stripe_customer_id)
+      customer = Stripe::Customer.retrieve(id: current_user.stripe_customer_id, expand: ['subscriptions'])
       if params[:token]
         # Only try to update card if there is one. We can imagine a future scenario where a member can update their dues without inputting their CC info again.
         customer.source = params[:token]
